@@ -1,8 +1,18 @@
-import { api } from "./client";
+import client from "./client";
 
 export const RegistrationsAPI = {
-  listByEvent: (eventId) => api.get(`/events/${eventId}/registrations`),
-  createForEvent: (eventId, payload) => api.post(`/events/${eventId}/registrations`, payload),
-  update: (id, payload) => api.put(`/registrations/${id}`, payload),
-  remove: (id) => api.delete(`/registrations/${id}`),
+  create(eventId, payload) {
+    return client.post(`/events/${eventId}/registrations`, payload);
+  },
+  listByEvent(eventId) {
+    return client.get(`/events/${eventId}/registrations`);
+  },
+  update(registrationId, payload) {
+    return client.put(`/registrations/${registrationId}`, payload);
+  },
+  remove(registrationId) {
+    return client.delete(`/registrations/${registrationId}`);
+  },
 };
+
+export default RegistrationsAPI;
