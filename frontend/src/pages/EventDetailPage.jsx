@@ -9,9 +9,9 @@ import RegistrationForm from "../components/RegistrationForm";
 import RegistrationTable from "../components/RegistrationTable";
 import { useToast } from "../components/Toast";
 
-function StatusBadge({ status }) {
-  if (status === "published") return <span className="badge badge-success">published</span>;
-  if (status === "closed") return <span className="badge badge-danger">closed</span>;
+function EventStatusBadge({ status }) {
+  if (status === "published") return <span className="badge badgeSuccess">published</span>;
+  if (status === "closed") return <span className="badge badgeDanger">closed</span>;
   return <span className="badge">{status}</span>;
 }
 
@@ -27,20 +27,23 @@ export default function EventDetailPage() {
 
   const [creating, setCreating] = useState(false);
 
-  const remain = useMemo(() => {
-    if (!event) return null;
-    const quota = event.quota ?? 0;
-    const active = regs.filter((r) => r.status !== "cancelled").length;
-    return Math.max(quota - active, 0);
-  }, [event, regs]);
+  const activeCount = useMemo(() => {
+    return regs.filter((r) => r.status === "registered").length;
+  }, [regs]);
 
-  const load = async () => {
+  const remain = useMemo(() => {
+    const quota = event?.quota ?? 0;
+    return Math.max(quota - activeCount, 0);
+  }, [event, activeCount]);
+
+  const loadEvent = async () => {
     setLoading(true);
     try {
       const res = await EventsAPI.get(id);
-      setEvent(res.data?.data || null);
+      setEvent(res.data?.data ?? null);
     } catch (e) {
       toast.push("載入失敗", getErrorMessage(e));
+      setEvent(null);
     } finally {
       setLoading(false);
     }
@@ -49,24 +52,26 @@ export default function EventDetailPage() {
   const loadRegs = async () => {
     setRegLoading(true);
     try {
-      const res = await EventsAPI.registrations(id); // 需對應你 events.api.js 的方法
-      setRegs(res.data?.data?.items || []);
+      const res = await EventsAPI.registrations(id);
+      setRegs(res.data?.data?.items ?? []);
     } catch (e) {
       toast.push("名單載入失敗", getErrorMessage(e));
+      setRegs([]);
     } finally {
       setRegLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
+    loadEvent();
     loadRegs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const onCreateRegistration = async (payload) => {
     setCreating(true);
     try {
-      await EventsAPI.createRegistration(id, payload); // 需對應你 events.api.js 的方法
+      await EventsAPI.createRegistration(id, payload);
       toast.push("已新增", "報名已建立");
       await loadRegs();
     } catch (e) {
@@ -104,38 +109,42 @@ export default function EventDetailPage() {
       <EmptyState
         title="找不到活動"
         desc="可能已被刪除或網址不正確。"
-        action={<Link className="btn btn-primary" to="/events">回列表</Link>}
+        action={<Link className="btn btnPrimary" to="/events">回列表</Link>}
       />
     );
   }
 
+  const formDisabled = creating || event.status === "closed" || remain === 0;
+
   return (
     <>
-      <div className="section-head">
+      <div className="pageTitle">
         <div>
-          <h1 className="h1">活動資訊 + 報名名單管理</h1>
-          <p className="p">管理活動內容、建立報名、更新狀態與刪除名單</p>
+          <h1>活動資訊 + 報名名單管理</h1>
+          <p>管理活動內容、建立報名、更新狀態與刪除名單</p>
         </div>
 
-        <div className="actions">
-          <Link className="btn btn-ghost" to={`/events/${event._id}/edit`}>編輯活動</Link>
+        <div className="row">
+          <Link className="btn" to={`/events/${event._id}/edit`}>編輯活動</Link>
           <Link className="btn" to="/events">回列表</Link>
         </div>
       </div>
 
       <div className="grid-2">
         <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">{event.title}</div>
-              <div className="card-sub">
-                <span style={{ marginRight: 10 }}><StatusBadge status={event.status} /></span>
-                名額 {event.quota ?? "-"}，剩餘 {remain ?? "-"}
+          <div className="cardHeader">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>{event.title}</div>
+                <div style={{ color: "var(--muted)", marginTop: 6 }}>
+                  <EventStatusBadge status={event.status} />　
+                  名額 {event.quota ?? "-"}，已報名 {activeCount}，剩餘 {remain}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="card-pad">
+          <div className="cardBody">
             <div className="kv">
               <div className="kv-row">
                 <div className="kv-k">時間</div>
@@ -154,23 +163,25 @@ export default function EventDetailPage() {
         </div>
 
         <div className="card">
-          <div className="card-header">
+          <div className="cardHeader">
             <div>
-              <div className="card-title">新增報名</div>
-              <div className="card-sub">填寫資料後送出，會寫入 registrations 集合</div>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>新增報名</div>
+              <div style={{ color: "var(--muted)", marginTop: 6 }}>
+                填寫資料後送出，會寫入 registrations 集合
+              </div>
             </div>
           </div>
 
-          <div className="card-pad">
+          <div className="cardBody">
             <RegistrationForm
-              disabled={creating || event.status === "closed" || remain === 0}
+              disabled={formDisabled}
               onSubmit={onCreateRegistration}
               hint={
                 event.status === "closed"
                   ? "活動已關閉，無法報名"
                   : remain === 0
-                    ? "名額已滿"
-                    : ""
+                  ? "名額已滿"
+                  : ""
               }
             />
           </div>
@@ -180,28 +191,26 @@ export default function EventDetailPage() {
       <div style={{ height: 16 }} />
 
       <div className="card">
-        <div className="card-header">
+        <div className="cardHeader">
           <div>
-            <div className="card-title">報名名單</div>
-            <div className="card-sub">共 {regs.length} 筆</div>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>報名名單</div>
+            <div style={{ color: "var(--muted)", marginTop: 6 }}>共 {regs.length} 筆</div>
           </div>
 
-          <div className="actions">
-            <button className="btn" onClick={loadRegs} disabled={regLoading}>重新整理名單</button>
+          <div className="row">
+            <button className="btn" onClick={loadRegs} disabled={regLoading}>
+              重新整理名單
+            </button>
           </div>
         </div>
 
-        <div className="card-pad">
+        <div className="cardBody">
           {regLoading ? (
             <Loading text="Loading registrations..." />
           ) : regs.length === 0 ? (
             <EmptyState title="目前沒有報名資料" desc="使用右側表單新增第一筆報名。" />
           ) : (
-            <RegistrationTable
-              items={regs}
-              onUpdate={onUpdateRegistration}
-              onDelete={onDeleteRegistration}
-            />
+            <RegistrationTable items={regs} onUpdate={onUpdateRegistration} onDelete={onDeleteRegistration} />
           )}
         </div>
       </div>

@@ -1,12 +1,16 @@
 import React from "react";
 
 function StatusBadge({ status }) {
-  if (status === "registered") return <span className="badge badgeSuccess">registered</span>;
-  if (status === "cancelled") return <span className="badge badgeDanger">cancelled</span>;
-  return <span className="badge">{status}</span>;
+  const cls =
+    status === "registered"
+      ? "badge badgeSuccess"
+      : status === "cancelled"
+      ? "badge badgeDanger"
+      : "badge";
+  return <span className={cls}>{status}</span>;
 }
 
-export default function RegistrationTable({ items, onCancel, onDelete }) {
+export default function RegistrationTable({ items, onUpdate, onDelete }) {
   return (
     <div className="tableWrap">
       <table>
@@ -17,34 +21,45 @@ export default function RegistrationTable({ items, onCancel, onDelete }) {
             <th>電話</th>
             <th>備註</th>
             <th>狀態</th>
-            <th style={{ width: 220 }}>操作</th>
+            <th style={{ width: 240 }}>操作</th>
           </tr>
         </thead>
+
         <tbody>
           {items.map((r) => (
             <tr key={r._id}>
-              <td>{r.name}</td>
-              <td>{r.email}</td>
+              <td style={{ fontWeight: 700 }}>{r.name}</td>
+              <td style={{ color: "var(--muted)" }}>{r.email}</td>
               <td>{r.phone || "-"}</td>
-              <td style={{ color: "var(--muted)" }}>{r.note || "-"}</td>
-              <td><StatusBadge status={r.status} /></td>
+              <td>{r.note || "-"}</td>
+              <td>
+                <StatusBadge status={r.status} />
+              </td>
               <td>
                 <div className="row">
-                  <button className="btn" onClick={() => onCancel?.(r)} disabled={r.status === "cancelled"}>
-                    取消
-                  </button>
-                  <button className="btn btnDanger" onClick={() => onDelete?.(r)}>
+                  {r.status === "registered" ? (
+                    <button
+                      className="btn"
+                      onClick={() => onUpdate?.(r._id, { status: "cancelled", note: r.note || "" })}
+                    >
+                      取消
+                    </button>
+                  ) : (
+                    <button
+                      className="btn"
+                      onClick={() => onUpdate?.(r._id, { status: "registered", note: r.note || "" })}
+                    >
+                      恢復
+                    </button>
+                  )}
+
+                  <button className="btn btnDanger" onClick={() => onDelete?.(r._id)}>
                     刪除
                   </button>
                 </div>
               </td>
             </tr>
           ))}
-          {items.length === 0 && (
-            <tr>
-              <td colSpan="6" style={{ color: "var(--muted)" }}>目前沒有報名資料</td>
-            </tr>
-          )}
         </tbody>
       </table>
     </div>
